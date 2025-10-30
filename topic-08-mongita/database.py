@@ -90,15 +90,18 @@ def create_pet(data):
         data["age"] = int(data["age"])
     except:
         data["age"] = 0
-    pets_collection = pets_db.pets_collection
-    pets_collection.insert_one(data)
+    # pets_collection = pets_db.pets_collection # <- Wrong table name
+    pet_collection = pets_db.pet_collection
+    # pets_collection.insert_one(data)
+    pet_collection.insert_one(data)
+    print(list(pet_collection.find())) # <- Debug Print
     
 
 def test_create_pet():
     kinds = get_kinds()
-    print(kinds)
-    exit(0)
-    id = None
+    #print(kinds)
+    #exit(0)
+    #id = None
     for kind in kinds:
         if kind["kind_name"] == "Dog":
             kind_id = kind["id"]
@@ -112,12 +115,15 @@ def test_create_pet():
     }
     create_pet(data)
     pets = get_pets()
-    print(pets)
+    #print(pets)
     for pet in pets:
         if pet["name"] == "Lassie":
+            print(pet) # <- Debug print
             assert type(pet["id"]) == str
             assert pet["owner"] == "Bobby"
-            assert pet["kind_id"] == kind_id
+            # assert pet["kind_id"] == kind_id 
+            # Whenever get_pets() is called, pet["kind_id"] is replaced by pet["kind_name"]
+            assert pet["kind_name"] == "Dog"
             return
     raise Exception("Created pet not found")    
 
@@ -225,6 +231,7 @@ def create_sample_database():
 
 if __name__ == "__main__":
     create_sample_database()
+    pets_db = client.pets_db # cannot initiate sample data without this line
     test_get_pets()
     test_get_pet()
     test_get_kinds()
