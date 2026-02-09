@@ -42,6 +42,48 @@ def post_create():
     connection.commit()
     return redirect(url_for("get_pets"))
 
+@app.route("/update")
+@app.route("/update/<id>", methods=["GET"])
+def get_update(id=None):
+    if id==None:
+        return render_template("error.html", error_message="No ID was provided.")
+    id = int(id)
+
+    cursor = connection.cursor()
+    cursor.execute(f"""select * from pet where id = ?""",(id,))
+    rows = cursor.fetchall()
+    try:
+        (id, name, kind, age, food) = rows[0]
+        data = {
+                "id":id,
+                "name":name,
+                "kind":kind,
+                "age":age,
+                "food":food
+        }
+        print([data])
+    except:
+        return render_template("error.html", error_message="Data not found.")
+    return render_template("update.html",data=data)
+
+@app.route("/update")
+@app.route("/update/<id>", methods=["POST"])
+def post_update(id=None):
+    if id==None:
+        return render_template("error.html", error_message="No ID was provided.")
+    id = int(id)
+    data = dict(request.form)
+    try:
+        data["age"] = int(data["age"])
+    except: 
+        data["age"] = 0
+    cursor = connection.cursor()
+    cursor.execute("""update pet set name=?, kind=?, age=?, food=? where id=?""",
+        (data["name"],data["kind"],data["age"],data["food"],id))
+    rows = cursor.fetchall()
+    connection.commit()
+    return redirect(url_for("get_pets"))
+
 @app.route("/delete/<id>", methods=["GET"])
 def get_delete(id):
     id = int(id)
