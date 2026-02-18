@@ -6,11 +6,11 @@
             <th>Name</th>
             <th>Type</th>
             <th>Age</th>
-            <th>Owner ID</th>
+            <th>Owner</th>
         </tr>
         {% for pet in pets %}
         <tr>
-            {% for key in pet.keys() %}
+            {% for key in ["id","name","type","age","owner_name"] %}
             <td>{{ pet[key] }}</td>
             {% endfor %}
             <td><a href="/delete/{{pet['id']}}">Delete</a></td>

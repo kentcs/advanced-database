@@ -1,32 +1,55 @@
 import sqlite3
+import os
 from pprint import pprint
 
 connection = None
 
 def initialize(database_file):
     global connection
+
+    # Close any prior connection so PRAGMAs and file handles are clean.
+    if connection is not None:
+        try:
+            connection.close()
+        except Exception:
+            pass
+        connection = None
+
     connection = sqlite3.connect(database_file, check_same_thread=False)
     connection.row_factory = sqlite3.Row
+
+    # Enforce foreign keys (per-connection in SQLite).
+    connection.execute("PRAGMA foreign_keys = ON")
+
+    # Fail fast if constraints are not active.
+    fk = connection.execute("PRAGMA foreign_keys").fetchone()[0]
+    assert fk == 1, "Foreign key constraints are not active on this connection."
     print("succeeded in making connection.")
+
+def close_connection():
+    global connection
+    if connection is not None:
+        try:
+            connection.close()
+        finally:
+            connection = None
+
 
 def get_owners():
     cursor = connection.cursor()
     cursor.execute("""select * from owner""")
-    owners = cursor.fetchall()
-    owners = [dict(owner) for owner in owners]
-    #for owner in owners:
-    #    print(owner)
+    owners = [dict(owner) for owner in cursor.fetchall()]
     return owners
+
 
 def get_owner(id):
     id = int(id)
     cursor = connection.cursor()
-    cursor.execute("""select * from owner where id = ?""", (id,))
-    owners = cursor.fetchall()
-    owners = [dict(owner) for owner in owners]
-    assert len(owners) == 1
+    cursor.execute("select * from owner where id = ?", (id,))
+    owners = [dict(row) for row in cursor.fetchall()]
     if len(owners) == 0:
         return None
+    assert len(owners) == 1
     return owners[0]
 
 def create_owner(data):
@@ -36,6 +59,7 @@ def create_owner(data):
         (data["name"], data.get("city"), data.get("type_of_home")),
     )
     connection.commit()
+    return cursor.lastrowid
 
 def delete_owner(id):
     id = int(id)
@@ -57,8 +81,6 @@ def get_pets():
     cursor.execute("""select * from pet""")
     pets = cursor.fetchall()
     pets = [dict(pet) for pet in pets]
-    # for pet in pets:
-    #     print(pet)
     return pets
 
 def get_pet(id):
@@ -80,9 +102,10 @@ def create_pet(data):
     cursor = connection.cursor()
     cursor.execute(
         """insert into pet(name, age, type, owner_id) values (?,?,?,?)""",
-        (data["name"], data["age"], data["type"], data["owner"]),
+        (data["name"], data["age"], data["type"], data["owner_id"]),
     )
     connection.commit()
+    return cursor.lastrowid
 
 def delete_pet(id):
     id = int(id)
@@ -102,33 +125,39 @@ def update_pet(id, data):
     )
     connection.commit()
 
-def setup_test_database():
-    print("execute setup_database()")
-    initialize("test_pets.db")
+def setup_test_database(db_file="test_pets.db"):
+    # Always start from a fresh file.
+    close_connection()
+    try:
+        os.remove(db_file)
+    except FileNotFoundError:
+        pass
+
+    initialize(db_file)
+
     cursor = connection.cursor()
-    cursor.execute("drop table if exists pet;")
-    cursor.execute("drop table if exists owner;")
+
     cursor.execute(
         """
-        create table if not exists owner (
+        create table owner (
             id integer primary key autoincrement,
             name text not null,
             city text,
             type_of_home text
         )
-    """
+        """
     )
     cursor.execute(
         """
-        create table if not exists pet (
+        create table pet (
             id integer primary key autoincrement,
             name text not null,
             type text not null,
             age integer,
-            owner_id integer not null, 
+            owner_id integer not null,
             foreign key (owner_id) references owner(id) on delete restrict
         )
-    """
+        """
     )
     connection.commit()
 
@@ -138,12 +167,8 @@ def setup_test_database():
     ]
     owner_ids = {}
     for owner in owners:
-        cursor.execute(
-            """insert into owner(name, city, type_of_home) values (?,?,?)""",
-            (owner["name"], owner["city"], owner["type_of_home"]),
-        )
-        owner_ids[owner["name"]] = cursor.lastrowid
-    connection.commit()
+        owner_id = create_owner(owner)
+        owner_ids[owner["name"]] = owner_id
 
     pets = [
         {"name": "dorothy", "type": "dog", "age": 9, "owner": "greg"},
@@ -153,13 +178,83 @@ def setup_test_database():
     ]
     for pet in pets:
         pet["owner_id"] = owner_ids[pet["owner"]]
-        cursor.execute(
-            """insert into pet(name, age, type, owner_id) values (?,?,?,?)""",
-            (pet["name"], pet["age"], pet["type"], pet["owner_id"]),
+        create_pet(
+            {
+                "name": pet["name"],
+                "age": pet["age"],
+                "type": pet["type"],
+                "owner_id": pet["owner_id"],
+            }
         )
-    connection.commit()
+
+    assert len(get_pets()) == 4
+    return owner_ids
+
+def test_constraints_are_active():
+    fk = connection.execute("PRAGMA foreign_keys").fetchone()[0]
+    assert fk == 1
+
+
+def test_get_pets():
     pets = get_pets()
-    assert len(pets) == 4
+    assert type(pets) is list
+    assert len(pets) >= 1
+    assert type(pets[0]) is dict
+    for key in ["name", "age", "type", "owner_id", "id"]:
+        assert key in pets[0]
+    assert type(pets[0]["name"]) is str
+
+
+def test_create_pet_and_get_pet(owner_ids):
+    new_id = create_pet(
+        {"name": "walter", "age": "2", "type": "mouse", "owner_id": owner_ids["greg"]}
+    )
+    pet = get_pet(new_id)
+    assert pet is not None
+    assert pet["name"] == "walter"
+    assert pet["age"] == 2
+    assert pet["type"] == "mouse"
+    assert pet["owner_id"] == owner_ids["greg"]
+
+
+def test_fk_rejects_bad_owner_id():
+    try:
+        create_pet({"name": "ghost", "age": 1, "type": "dog", "owner_id": 999999})
+        assert False, "Expected FOREIGN KEY constraint failure, but insert succeeded."
+    except sqlite3.IntegrityError as e:
+        msg = str(e).lower()
+        assert "foreign key" in msg or "constraint" in msg
+
+
+def test_delete_owner_restricted(owner_ids):
+    # greg owns multiple pets; delete should be restricted.
+    try:
+        delete_owner(owner_ids["greg"])
+        assert False, "Expected delete restriction failure, but delete succeeded."
+    except sqlite3.IntegrityError as e:
+        msg = str(e).lower()
+        assert "foreign key" in msg or "constraint" in msg
+
+
+def test_delete_pet_then_delete_owner_succeeds(owner_ids):
+    # Create a new owner with a single pet, then remove pet and ensure owner can be deleted.
+    owner_id = create_owner({"name": "solo", "city": "Akron", "type_of_home": "house"})
+    pet_id = create_pet(
+        {"name": "onepet", "age": 3, "type": "cat", "owner_id": owner_id}
+    )
+
+    # Deleting owner now should fail.
+    try:
+        delete_owner(owner_id)
+        assert False, "Expected delete restriction failure, but delete succeeded."
+    except sqlite3.IntegrityError:
+        pass
+
+    # Remove pet, then delete owner should work.
+    delete_pet(pet_id)
+    delete_owner(owner_id)
+    assert get_owner(owner_id) is None
+
 
 def test_get_owners():
     print("test get_owners()")
@@ -216,44 +311,22 @@ def test_delete_owner():
     owners = [owner for owner in owners if owner["name"] == "santa"]
     assert owners == []
 
-def test_get_pets():
-    print("testing get_pets()")
-    pets = get_pets()
-    assert type(pets) is list
-    assert type(pets[0]) is dict
-    for key in ["name","age"]:
-        assert key in pets[0]
-    assert type(pets[0]["name"]) == str 
-    assert type(pets[0]["type"]) == str 
-    assert type(pets[0]["owner_id"]) == int
-
-
-def test_create_pet():
-    print("testing get_pets()")
-    pass
-
-def test_delete_owner_with_constraint():
-    print("testing delete_owner() with constraint")
-    pets = get_pets()
-    pets = [pet for pet in pets if pet["owner_id"] == 1]
-    assert len(pets) > 0
-    try:
-        delete_owner(1)
-        assert False, "We have deleted an owner who has a pet!"
-    except Exception as e:
-        print(str(e))
-        exit(0)
-
 
 if __name__ == "__main__":
-    setup_test_database()
+    owner_ids = setup_test_database()
+
+    # Run tests in a simple way without pytest, but still pytest-compatible.
+    test_constraints_are_active()
+    test_get_pets()
+    test_create_pet_and_get_pet(owner_ids)
+    test_fk_rejects_bad_owner_id()
+    test_delete_owner_restricted(owner_ids)
+    test_delete_pet_then_delete_owner_succeeds(owner_ids)
     test_get_owners()
     test_get_owner()
     test_create_owner()
     test_update_owner()
     test_delete_owner()
-    test_get_pets()
-    test_create_pet()
-    test_delete_owner_with_constraint()
+    close_connection()
     print("done.")
 
