@@ -1,0 +1,128 @@
+Script started on 2026-02-23 22:59:37+00:00 [TERM="xterm-256color" TTY="/dev/pts/1" COLUMNS="69" LINES="19"]
+[?2004h$ pip install peewee
+[?2004lCollecting peewee
+  Downloading peewee-4.0.0-py3-none-any.whl.metadata (8.1 kB)
+Downloading peewee-4.0.0-py3-none-any.whl (139 kB)
+Installing collected packages: peewee
+Successfully installed peewee-4.0.0
+
+[1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m A new release of pip is available: [0m[31;49m25.3[0m[39;49m -> [0m[32;49m26.0.1[0m
+[1m[[0m[34;49mnotice[0m[1;39;49m][0m[39;49m To update, run: [0m[32;49mpython3 -m pip install --upgrade pip[0m
+[?2004h$ [7mpython3 -m pip install --upgrade pip[27m[C[Cpython3 -m pip install --upgrade pip
+[?2004lRequirement already satisfied: pip in /home/codespace/.python/current/lib/python3.12/site-packages (25.3)
+Collecting pip
+  Downloading pip-26.0.1-py3-none-any.whl.metadata (4.7 kB)
+Downloading pip-26.0.1-py3-none-any.whl (1.8 MB)
+[?25l   [38;5;237m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/1.8 MB[0m [31m?[0m eta [36m-:--:--[0m[2K   [38;2;114;156;31m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m1.8/1.8 MB[0m [31m36.7 MB/s[0m  [33m0:00:00[0m
+[?25hInstalling collected packages: pip
+  Attempting uninstall: pip
+    Found existing installation: pip 25.3
+    Uninstalling pip-25.3:
+      Successfully uninstalled pip-25.3
+Successfully installed pip-26.0.1
+[?2004h$ python
+[?2004lPython 3.12.1 (main, Nov 27 2025, 10:47:52) [GCC 13.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> from peewee import *
+>>> 
+>>> db = SqliteDatabase('people.db')
+>>> 
+>>> class Person(Model):
+...     name = CharField()
+...     birthday = DateField()
+... 
+>>>     class Meta:
+  File "<stdin>", line 1
+    class Meta:
+IndentationError: unexpected indent
+>>>         database = db # This model uses the "people.db" database. [A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[K.
+  File "<stdin>", line 1
+    database = db # This model uses the "people.db" database.
+IndentationError: unexpected indent
+>>> class Person(Model):
+...     name = CharField()
+...     birthday = DateField()
+...     class Meta:
+...         database = db 
+... 
+>>> db
+<peewee.SqliteDatabase object at 0x732c6c6e35c0>
+>>> Person
+<Model: Person>
+>>> class Pet(Model):
+...     owner = ForeignKeyField(Person, backref='pets')
+...     name = CharField()
+...     animal_type = CharField()
+...      [K[C[C[C[Cclass Meta:    
+...         database = db # this model uses the "people.db" database
+... 
+>>> db.connect()
+True
+>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> [K>>> db.create_tables([Person, Pet])
+>>> from datetime import date
+>>> uncle_bob = Person(name='Bob', birthday=date(1960, 1, 15))
+>>> uncle_bob.save() # bob is now stored in the database
+1
+>>> grandma = Person.create(name='Grandma', birthday=date(1935, 3, 1))
+>>> herb = Person.create(name='Herb', birthday=date(1950, 5, 5))
+>>> gransma[K[K[Kdma
+<Person: 2>
+>>> bob_kitty = Pet.create(owner=uncle_bob, name='Kitty', animal_type='cat')
+>>> herb_fido = Pet.create(owner=herb, name='Fido', animal_type='dog')
+>>> herb_mittens = Pet.create(owner=herb, name='Mittens', animal_type='cat')
+>>> herb_mittens_jr = Pet.create(owner=herb, name='Mittens Jr', animal_type='cat')
+>>> herb_mittens.delete_instance() 
+1
+>>> grandma = Person.get(Person.name == 'Grandma L.')[1@2[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C
+Traceback (most recent call last):
+  File "/usr/local/python/3.12.1/lib/python3.12/site-packages/peewee.py", line 7408, in get
+    return clone.execute(database)[0]
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/python/3.12.1/lib/python3.12/site-packages/peewee.py", line 4680, in __getitem__
+    return self.row_cache[item]
+           ~~~~~~~~~~~~~~^^^^^^
+IndexError: list index out of range
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/usr/local/python/3.12.1/lib/python3.12/site-packages/peewee.py", line 6946, in get
+    return sq.get()
+           ^^^^^^^^
+  File "/usr/local/python/3.12.1/lib/python3.12/site-packages/peewee.py", line 7411, in get
+    raise self.model.DoesNotExist('%s instance matching query does '
+PersonDoesNotExist: <Model: Person> instance matching query does not exist:
+SQL: SELECT "t1"."id", "t1"."name", "t1"."birthday" FROM "person" AS "t1" WHERE ("t1"."name" = ?) LIMIT ? OFFSET ?
+Params: ['Grandma L.', 1, 0]
+>>> grandma = Person.get(Person.name == 'Grandma L.')[1P')[1P')[1P')[C[C
+>>> grandma = Person.get(Person.name == 'Grandma')[1@2[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C
+>>> grandma.name
+'Grandma'
+>>> grandma.name[K[K[K[K[K.birthday
+datetime.date(1935, 3, 1)
+>>> for person in Person.select():
+...     print(person.name)
+... 
+Bob
+Grandma
+Herb
+>>> people = pe[K[KPerson.select()
+>>> people
+<peewee.ModelSelect object at 0x732c6c5dd580>
+>>> lice[K[Ksgt([K[K[Kt(people)
+[<Person: 1>, <Person: 2>, <Person: 3>]
+>>> list(people)[list(people)[C[C[C[C[Cplist(people)[C[C[C[C[C[Celist(people)[C[C[C[C[C[C[Crlist(people)[C[C[C[C[C[C[C[Cslist(people)[C[C[C[C[C[C[C[C[Colist(people)[C[C[C[C[C[C[C[C[C[Cnlist(people) list(people)[1Plist(people).list(people)nlist(people)alist(people)mlist(people)elist(people) list(people)flist(people)olist(people)rlist(people) list(people)plist(people)elist(people)rlist(people)slist(people)olist(people)nlist(people) list(people)ilist(people)nlist(people) list(people)plist(people)elist(people)olist(people)plist(people)[Clist(people)elist(people)]list(people)[C[C[C[C[C[C[C[C[C[C[C[C[K[K[K[K[K[K[K[K[K[K[K[K
+['Bob', 'Grandma', 'Herb']
+>>> query = Pet.select().where(Pet.animal_type == 'cat')
+>>> for pet in query:
+...     print(pet.name, pet.owner.name)
+... 
+Kitty Bob
+Mittens Jr Herb
+>>> [pereeo[K[K[K[Kr[K[K[K[[Kpet.name, pet.owe[Kner.a[Kname for pet in Pet.select().where(Pet.animal_type == 'cat')]
+  File "<stdin>", line 1
+    [pet.name, pet.owner.name for pet in Pet.select().where(Pet.animal_type == 'cat')]
+     ^^^^^^^^^^^^^^^^^^^^^^^^
+SyntaxError: did you forget parentheses around the comprehension target?
+>>> [pet.name, pet.owner.name for pet in Pet.select().where(Pet.animal_type == 'cat')][A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C(pet.name, pet.owner.name for pet in Pet.select().where(Pet.anima[1@l[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C) for pet in Pet.select().where(Pet.anim[1@a[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C
