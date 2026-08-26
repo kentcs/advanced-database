@@ -1,0 +1,147 @@
+$ pwd
+/workspaces/advanced-database/topic-01-intro-sql
+$ sqlite3 pets.db
+SQLite version 3.45.3 2024-04-15 13:34:05
+Enter ".help" for usage hints.
+sqlite> .schema
+sqlite> .tables
+sqlite> .headers on 
+sqlite> .mode column
+sqlite> create table pet
+   ...> (
+(x1...> id integer primary key autoincrement, 
+(x1...> name text not null,
+(x1...> kind text not null, 
+(x1...> age integer,
+(x1...> food text
+(x1...> );
+sqlite> .tables
+pet
+sqlite> .schema
+CREATE TABLE pet
+(
+id integer primary key autoincrement, 
+name text not null,
+kind text not null, 
+age integer,
+food text
+);
+CREATE TABLE sqlite_sequence(name,seq);
+sqlite> insert into pet (name, kind, age, food) value 
+('Dorothy','dog',11,'peanut butter'
+(x1...> );
+Parse error: near "value": syntax error
+  insert into pet (name, kind, age, food) value ('Dorothy','dog',11,'peanut butt
+                            error here ---^
+sqlite> insert into pet (name, kind, age, food) values ('Dorothy','dog',11,'peanut butter');
+sqlite> select * from pet;
+id  name     kind  age  food         
+--  -------  ----  ---  -------------
+1   Dorothy  dog   11   peanut butter
+sqlite> insert into pet (name, kind, age, food) values ('Sandy','cat',11,'tuna'
+);
+sqlite> insert into pet (name, kind, age, food) values ('Whiskers','hamster',11
+,'hamster chow');
+sqlite> select * from pet;
+id  name      kind     age  food         
+--  --------  -------  ---  -------------
+1   Dorothy   dog      11   peanut butter
+2   Sandy     cat      11   tuna         
+3   Whiskers  hamster  11   hamster chow 
+sqlite> select from pet where kind = 'cat';
+Parse error: near "from": syntax error
+  select from pet where kind = 'cat';
+         ^--- error here
+sqlite> select * from pet where kind = 'cat';
+id  name   kind  age  food
+--  -----  ----  ---  ----
+2   Sandy  cat   11   tuna
+sqlite> delete from pet where kind = 'cat';
+sqlite> select kind,food from pet;
+kind     food         
+-------  -------------
+dog      peanut butter
+hamster  hamster chow 
+sqlite> select kind,food from pet where age = 11;
+kind     food         
+-------  -------------
+dog      peanut butter
+hamster  hamster chow 
+
+$ echo "hello"
+hello
+$ echo <<'SONG'
+> Happy birthday to you,
+> HBTY
+> HBT Dorothy
+> HBTY
+> SONG
+
+$ echo <<'SONG'
+Happy birthday to you,
+HBTY
+HBT Dorothy
+HBTY
+'SONG'
+> SONG
+
+$ cd *01*
+bash: cd: *01*: No such file or directory
+$ ls
+pets.db
+$ pwd
+/workspaces/advanced-database/topic-01-intro-sql
+$ sqlite3 pets.db ".tables"
+pet
+$ cat <<'SONG' "hello"
+> ^C
+$ cat <<'SONG'
+> hi
+> hello
+> how are you
+> SONG
+hi
+hello
+how are you
+$ sqlite pets.db <<'SQL'
+> select * 
+> from pet
+> ;
+> SQL
+bash: sqlite: command not found
+$ sqlite3 pets.db <<'SQL'
+select * 
+from pet
+;
+SQL
+$ 
+$ sqlite3 pets.db -header -column "select * from pet;"
+id  name     kind  age  food         
+--  -------  ----  ---  -------------
+1   Dorothy  dog   11   peanut butter
+$ sqlite3 pets.db -header -column "select * from pet where name == 'Dorothy';"
+id  name     kind  age  food         
+--  -------  ----  ---  -------------
+1   Dorothy  dog   11   peanut butter
+$ sqlite3 pets.db -header -column "select * from pet where name == 'Do';"
+$ sqlite3 pets.db -header -column "select * from pet where name == 'Whiskers';"
+id  name      kind     age  food        
+--  --------  -------  ---  ------------
+3   Whiskers  hamster  11   hamster chow
+$ sqlite3 pets.db -header -column "select * from pet where name = 'Whiskers';"
+id  name      kind     age  food        
+--  --------  -------  ---  ------------
+3   Whiskers  hamster  11   hamster chow
+$ sqlite3 pets.db -header -column "select * from pet order by kind;"
+id  name      kind     age  food         
+--  --------  -------  ---  -------------
+2   Sandy     cat      11   tuna         
+1   Dorothy   dog      11   peanut butter
+3   Whiskers  hamster  11   hamster chow 
+$ sqlite3 pets.db -header -column "select * from pet order by food;"
+id  name      kind     age  food         
+--  --------  -------  ---  -------------
+3   Whiskers  hamster  11   hamster chow 
+1   Dorothy   dog      11   peanut butter
+2   Sandy     cat      11   tuna         
+$ 
