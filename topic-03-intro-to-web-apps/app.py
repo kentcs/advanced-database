@@ -41,7 +41,7 @@ def post_create():
     connection.commit()
     return redirect(url_for("get_pets"))
 
-@app.route("/update")
+@app.route("/update", methods=["GET"])
 @app.route("/update/<id>", methods=["GET"])
 def get_update(id=None):
     if id==None:
@@ -49,7 +49,7 @@ def get_update(id=None):
     id = int(id)
 
     cursor = connection.cursor()
-    cursor.execute(f"""select * from pet where id = ?""",(id,))
+    cursor.execute("""select * from pet where id = ?""",(id,))
     rows = cursor.fetchall()
     try:
         (id, name, kind, age, food) = rows[0]
@@ -65,7 +65,7 @@ def get_update(id=None):
         return render_template("error.html", error_message="Data not found.")
     return render_template("update.html",data=data)
 
-@app.route("/update")
+@app.route("/update", methods=["POST"])
 @app.route("/update/<id>", methods=["POST"])
 def post_update(id=None):
     if id==None:
@@ -79,7 +79,6 @@ def post_update(id=None):
     cursor = connection.cursor()
     cursor.execute("""update pet set name=?, kind=?, age=?, food=? where id=?""",
         (data["name"],data["kind"],data["age"],data["food"],id))
-    rows = cursor.fetchall()
     connection.commit()
     return redirect(url_for("get_pets"))
 
