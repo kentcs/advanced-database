@@ -136,7 +136,7 @@ class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a hr
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>connection.commit()</span></code></pre></div>
 <p>SQLite supplies the identifier.</p>
-<aside class="notes">Equivalent excerpt from post_create. Adjacent string literals join in Python. Parameters keep supplied values separate from SQL syntax. O&#x27;Malley works without manually quoting an SQL string. Omitted cursor assignment and unused fetchall: INSERT without RETURNING yields no rows to fetch. execute performs the insertion; fetching does not execute it. Commit completes the transaction. Route next returns redirect(url_for(&quot;get_pets&quot;)).</aside></section>
+<aside class="notes">Equivalent excerpt from post_create. Adjacent string literals join in Python. Parameters keep supplied values separate from SQL syntax. O&#x27;Malley works without manually quoting an SQL string. INSERT without RETURNING yields no rows to fetch. execute performs the insertion. Commit completes the transaction. Route next returns redirect(url_for(&quot;get_pets&quot;)).</aside></section>
 <section><h2 id="after-the-save">After the Save</h2>
 <div class="sourceCode" id="cb1"><pre
 class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> redirect(url_for(<span class="st">&quot;get_pets&quot;</span>))</span></code></pre></div>

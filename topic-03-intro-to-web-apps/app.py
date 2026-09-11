@@ -36,9 +36,8 @@ def get_create():
 @app.route("/create", methods=["POST"])
 def post_create():
     data = dict(request.form)
-    cursor = connection.execute("""insert into pet(name, kind, age, food) values (?,?,?,?)""",
+    connection.execute("""insert into pet(name, kind, age, food) values (?,?,?,?)""",
         (data["name"],data["kind"],data["age"],data["food"]))
-    rows = cursor.fetchall()
     connection.commit()
     return redirect(url_for("get_pets"))
 
