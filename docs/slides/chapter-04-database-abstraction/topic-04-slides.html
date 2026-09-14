@@ -7,6 +7,36 @@
 <p>The routes ask for an operation. The database module carries it
 out.</p>
 <aside class="notes">Source: chapter-04-database-abstraction.md, ../../topic-04-database-abstraction/app.py, database.py, and templates/. Story: same pet application, move database operations behind functions, return named records, follow a create and edit, test the module directly. Structured Query Language (SQL) stays in database.py. Examples are source excerpts with line breaks adjusted; illustrative records are identified.</aside></section>
+<section><h2 id="why-an-abstraction-layer">Why an Abstraction Layer?</h2>
+<p>A named operation hides the details of carrying it out.</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>pet <span class="op">=</span> database.get_pet(<span class="bu">id</span>)</span></code></pre></div>
+<p>The route asks for a pet. The module handles the query.</p>
+<p>Query details can change while the calling code stays the same.</p>
+<aside class="notes">Abstraction layer: a set of operations between a caller and the implementation it uses. get_pet promises a dictionary or None. Its caller can work with that promise without managing a cursor or converting a database row. Changing the query while preserving the accepted arguments and returned values keeps the route unchanged. One implementation also serves both routes and direct Python tests. Less detail to hold in mind when reading a route. Structured Query Language (SQL) belongs behind this interface.</aside></section>
+<section><h2 id="single-responsibility-principle">Single Responsibility
+Principle</h2>
+<p>Single Responsibility Principle (SRP): one reason to change.</p>
+<table>
+<thead>
+<tr>
+<th>What changes?</th>
+<th>Where it belongs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Request handling or page selection</td>
+<td><code>app.py</code></td>
+</tr>
+<tr>
+<td>How pets are stored or retrieved</td>
+<td><code>database.py</code></td>
+</tr>
+</tbody>
+</table>
+<p>Keep code that changes for the same reason together.</p>
+<aside class="notes">A responsibility is a coherent area of work. A module can have several functions serving that responsibility. app.py handles web requests and chooses responses. database.py owns database operations. A different redirect belongs in app.py. A different query for loading a pet belongs in database.py. These changes have different reasons, so separate modules give each a clear home. Adding a new field can still involve both modules and templates because it changes both storage and the user interface. The principle guides where work belongs; it does not promise that every feature changes only one file.</aside></section>
 <section><h2 id="running-the-application">Running the Application</h2>
 <div class="sourceCode" id="cb1"><pre
 class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">flask</span> run</span></code></pre></div>
