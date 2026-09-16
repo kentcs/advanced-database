@@ -1,87 +1,53 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Code: Database Abstraction</title>
-    <style>
-        body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            line-height: 1.5;
-            margin: 2rem auto;
-            max-width: 1040px;
-            padding: 0 1rem;
-        }
-
-        a {
-            color: #174ea6;
-        }
-
-        h2 {
-            margin-top: 2rem;
-        }
-
-        .file-list {
-            background: white;
-            border-bottom: 1px solid #d0d7de;
-            padding: 0.5rem 0 1rem;
-            position: sticky;
-            top: 0;
-        }
-
-        .source-file {
-            border: 1px solid #d0d7de;
-            border-radius: 6px;
-            margin: 1rem 0;
-        }
-
-        summary {
-            cursor: pointer;
-            font-weight: 700;
-            padding: 0.75rem 1rem;
-        }
-
-        summary:hover {
-            background: #f6f8fa;
-        }
-
-        pre {
-            background: #f6f8fa;
-            border-top: 1px solid #d0d7de;
-            margin: 0;
-            overflow-x: auto;
-            padding: 1rem;
-            white-space: pre;
-        }
-
-        code {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-            font-size: 14px;
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code: Database Abstraction</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; color: #172b36; background: #f5f7f9; font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 1600px; margin: auto; padding: 24px; }
+a { color: #12647a; }
+h1 { font-size: 26px; margin: 8px 0 20px; }
+.browser { display: grid; grid-template-columns: 270px minmax(0, 1fr); height: calc(100vh - 140px); min-height: 400px; border: 1px solid #ccd6dc; border-radius: 8px; overflow: hidden; background: white; }
+nav { overflow: auto; background: #edf2f5; border-right: 1px solid #ccd6dc; padding: 12px; }
+nav ul { list-style: none; padding: 0; margin: 0; }
+nav a { display: block; padding: 9px 10px; text-decoration: none; border-radius: 4px; overflow-wrap: anywhere; font: 14px/1.5 ui-monospace, monospace; }
+nav a:hover { background: #dfe9ed; }
+nav a[aria-current="true"] { background: #155e75; color: white; }
+a:focus-visible { outline: 3px solid #d18a00; outline-offset: -3px; }
+.viewer { min-width: 0; min-height: 0; }
+.source-file { height: 100%; display: flex; flex-direction: column; }
+.source-file[hidden] { display: none; }
+.file-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 18px; border-bottom: 1px solid #ccd6dc; }
+h2 { font: 600 16px/1.5 ui-monospace, monospace; margin: 0; overflow-wrap: anywhere; }
+pre { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 20px; background: #fafbfc; tab-size: 4; }
+code { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.binary { padding: 20px; }
+@media(max-width: 700px) {
+ main { padding: 12px; } h1 { font-size: 21px; }
+ .browser { grid-template-columns: 1fr; grid-template-rows: 160px minmax(0, 1fr); height: calc(100dvh - 130px); min-height: 480px; }
+ nav { border-right: 0; border-bottom: 1px solid #ccd6dc; }
+}
+</style>
 </head>
-
 <body>
-    <main>
-        <h1>Code</h1>
-        <nav class="file-list" aria-label="Files">
-        <ul>
-        <li><a href="#file-app-py">app.py</a></li>
-        <li><a href="#file-database-py">database.py</a></li>
-<li><a href="pets.db" download>pets.db (download)</a></li>
-        <li><a href="#file-setup-database-py">setup_database.py</a></li>
-        <li><a href="#file-templates-create-html">templates/create.html</a></li>
-        <li><a href="#file-templates-error-html">templates/error.html</a></li>
-        <li><a href="#file-templates-hello-html">templates/hello.html</a></li>
-        <li><a href="#file-templates-list-html">templates/list.html</a></li>
-        <li><a href="#file-templates-update-html">templates/update.html</a></li>
-<li><a href="test_pets.db" download>test_pets.db (download)</a></li>
-        </ul>
-        </nav>
-        <details class="source-file" id="file-app-py">
-            <summary>app.py</summary>
-            <pre><code>from flask import Flask, render_template, request, redirect, url_for
+<main>
+<a href="../index.html">Back to chapter</a>
+<h1>Database Abstraction: Code</h1>
+<div class="browser">
+<nav aria-label="Files"><ul><li><a href="#file-6170702e7079">app.py</a></li>
+<li><a href="#file-64617461626173652e7079">database.py</a></li>
+<li><a href="#file-706574732e6462">pets.db</a></li>
+<li><a href="#file-73657475705f64617461626173652e7079">setup_database.py</a></li>
+<li><a href="#file-74656d706c617465732f6372656174652e68746d6c">templates/create.html</a></li>
+<li><a href="#file-74656d706c617465732f6572726f722e68746d6c">templates/error.html</a></li>
+<li><a href="#file-74656d706c617465732f68656c6c6f2e68746d6c">templates/hello.html</a></li>
+<li><a href="#file-74656d706c617465732f6c6973742e68746d6c">templates/list.html</a></li>
+<li><a href="#file-74656d706c617465732f7570646174652e68746d6c">templates/update.html</a></li>
+<li><a href="#file-746573745f706574732e6462">test_pets.db</a></li></ul></nav>
+<div class="viewer"><section class="source-file" id="file-6170702e7079" aria-labelledby="title-file-6170702e7079"><header class="file-header"><h2 id="title-file-6170702e7079">app.py</h2></header><pre><code>from flask import Flask, render_template, request, redirect, url_for
 
 import database
 
@@ -144,11 +110,8 @@ def post_update(id=None):
 def get_delete(id):
     database.delete_pet(id)
     return redirect(url_for("get_pets"))
-</code></pre>
-        </details>
-        <details class="source-file" id="file-database-py">
-            <summary>database.py</summary>
-            <pre><code>import sqlite3
+</code></pre></section>
+<section class="source-file" id="file-64617461626173652e7079" aria-labelledby="title-file-64617461626173652e7079" hidden><header class="file-header"><h2 id="title-file-64617461626173652e7079">database.py</h2></header><pre><code>import sqlite3
 from pprint import pprint
 
 connection = None
@@ -285,11 +248,9 @@ if __name__ == "__main__":
 # ("a",1,"b",2)
 # This is a dictionary
 # { "name": "a","age":1,"kind":"b","whatever":2 }
-</code></pre>
-        </details>
-        <details class="source-file" id="file-setup-database-py">
-            <summary>setup_database.py</summary>
-            <pre><code>import argparse
+</code></pre></section>
+<section class="source-file" id="file-706574732e6462" aria-labelledby="title-file-706574732e6462" hidden><header class="file-header"><h2 id="title-file-706574732e6462">pets.db</h2></header><p class="binary">This is a binary data file. It is available in the repository linked below.</p></section>
+<section class="source-file" id="file-73657475705f64617461626173652e7079" aria-labelledby="title-file-73657475705f64617461626173652e7079" hidden><header class="file-header"><h2 id="title-file-73657475705f64617461626173652e7079">setup_database.py</h2></header><pre><code>import argparse
 import database
 
 if __name__ == "__main__":
@@ -299,11 +260,8 @@ if __name__ == "__main__":
     database.setup_database(args.database_file)
     database.connection.close()
     print(f"Ready: {args.database_file}")
-</code></pre>
-        </details>
-        <details class="source-file" id="file-templates-create-html">
-            <summary>templates/create.html</summary>
-            <pre><code>&lt;html&gt;
+</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6372656174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f6372656174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6372656174652e68746d6c">templates/create.html</h2></header><pre><code>&lt;html&gt;
     &lt;head&gt;&lt;/head&gt;
     &lt;body&gt;
         This is the create template. 
@@ -320,11 +278,8 @@ if __name__ == "__main__":
             &lt;hr/&gt;
         &lt;/form&gt;
     &lt;/body&gt;
-&lt;/html&gt;</code></pre>
-        </details>
-        <details class="source-file" id="file-templates-error-html">
-            <summary>templates/error.html</summary>
-            <pre><code>&lt;html&gt;
+&lt;/html&gt;</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6572726f722e68746d6c" aria-labelledby="title-file-74656d706c617465732f6572726f722e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6572726f722e68746d6c">templates/error.html</h2></header><pre><code>&lt;html&gt;
     &lt;head&gt;
         &lt;title&gt;Pet List&lt;/title&gt;
         &lt;meta charset="utf-8"&gt;
@@ -338,17 +293,11 @@ if __name__ == "__main__":
         &lt;hr&gt;
         &lt;a href="/list"&gt;OK&lt;/a&gt;
     &lt;/body&gt;
-&lt;/html&gt;</code></pre>
-        </details>
-        <details class="source-file" id="file-templates-hello-html">
-            <summary>templates/hello.html</summary>
-            <pre><code>&lt;html&gt;
+&lt;/html&gt;</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f68656c6c6f2e68746d6c" aria-labelledby="title-file-74656d706c617465732f68656c6c6f2e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f68656c6c6f2e68746d6c">templates/hello.html</h2></header><pre><code>&lt;html&gt;
     &lt;body&gt;Hello, {{ name }}! (from the template)&lt;/body&gt;
-&lt;/html&gt;</code></pre>
-        </details>
-        <details class="source-file" id="file-templates-list-html">
-            <summary>templates/list.html</summary>
-            <pre><code>&lt;html&gt;
+&lt;/html&gt;</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f6c6973742e68746d6c" aria-labelledby="title-file-74656d706c617465732f6c6973742e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f6c6973742e68746d6c">templates/list.html</h2></header><pre><code>&lt;html&gt;
     &lt;h3&gt;List:&lt;/h3&gt;
     &lt;table&gt;
         &lt;tr&gt;
@@ -371,11 +320,8 @@ if __name__ == "__main__":
     &lt;/table&gt;
     &lt;hr/&gt;
     &lt;a href="/create"&gt;Create New Pet&lt;/a&gt;
-&lt;/html&gt;</code></pre>
-        </details>
-        <details class="source-file" id="file-templates-update-html">
-            <summary>templates/update.html</summary>
-            <pre><code>&lt;html&gt;
+&lt;/html&gt;</code></pre></section>
+<section class="source-file" id="file-74656d706c617465732f7570646174652e68746d6c" aria-labelledby="title-file-74656d706c617465732f7570646174652e68746d6c" hidden><header class="file-header"><h2 id="title-file-74656d706c617465732f7570646174652e68746d6c">templates/update.html</h2></header><pre><code>&lt;html&gt;
     &lt;head&gt;&lt;/head&gt;
     &lt;body&gt;
         This is the update template. 
@@ -392,11 +338,25 @@ if __name__ == "__main__":
             &lt;hr/&gt;
         &lt;/form&gt;
     &lt;/body&gt;
-&lt;/html&gt;</code></pre>
-        </details>
-
-        <p><a href="../../index.html">Back to course index</a></p>
-    </main>
+&lt;/html&gt;</code></pre></section>
+<section class="source-file" id="file-746573745f706574732e6462" aria-labelledby="title-file-746573745f706574732e6462" hidden><header class="file-header"><h2 id="title-file-746573745f706574732e6462">test_pets.db</h2></header><p class="binary">This is a binary data file. It is available in the repository linked below.</p></section></div>
+</div>
+<p>The files are available in the <a href="https://github.com/kentcs/advanced-database/tree/main/chapter-04-database-abstraction/code">course repository</a>.</p>
+</main>
+<script>
+const links = [...document.querySelectorAll('nav a')];
+const panels = [...document.querySelectorAll('.source-file')];
+function showFile() {
+ const selected = links.find(link => link.hash === location.hash) || links[0];
+ if (!selected) return;
+ for (const link of links) {
+  if (link === selected) link.setAttribute('aria-current', 'true');
+  else link.removeAttribute('aria-current');
+ }
+ for (const panel of panels) panel.hidden = '#' + panel.id !== selected.hash;
+}
+window.addEventListener('hashchange', showFile);
+showFile();
+</script>
 </body>
-
 </html>
