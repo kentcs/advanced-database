@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Code: Working with SQL in SQLite</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.5;
+            margin: 2rem auto;
+            max-width: 1040px;
+            padding: 0 1rem;
+        }
+
+        a {
+            color: #174ea6;
+        }
+
+        h2 {
+            margin-top: 2rem;
+        }
+
+        .file-list {
+            background: white;
+            border-bottom: 1px solid #d0d7de;
+            padding: 0.5rem 0 1rem;
+            position: sticky;
+            top: 0;
+        }
+
+        .source-file {
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+
+        summary {
+            cursor: pointer;
+            font-weight: 700;
+            padding: 0.75rem 1rem;
+        }
+
+        summary:hover {
+            background: #f6f8fa;
+        }
+
+        pre {
+            background: #f6f8fa;
+            border-top: 1px solid #d0d7de;
+            margin: 0;
+            overflow-x: auto;
+            padding: 1rem;
+            white-space: pre;
+        }
+
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <h1>Code</h1>
+        <nav class="file-list" aria-label="Files">
+        <ul>
+        <li><a href="#file-example-txt">example.txt</a></li>
+<li><a href="pets.db" download>pets.db (download)</a></li>
+        </ul>
+        </nav>
+        <details class="source-file" id="file-example-txt">
+            <summary>example.txt</summary>
+            <pre><code>$ pwd
+/workspaces/advanced-database/topic-01-intro-sql
+$ sqlite3 pets.db
+SQLite version 3.45.3 2024-04-15 13:34:05
+Enter ".help" for usage hints.
+sqlite&gt; .schema
+sqlite&gt; .tables
+sqlite&gt; .headers on 
+sqlite&gt; .mode column
+sqlite&gt; create table pet
+   ...&gt; (
+(x1...&gt; id integer primary key autoincrement, 
+(x1...&gt; name text not null,
+(x1...&gt; kind text not null, 
+(x1...&gt; age integer,
+(x1...&gt; food text
+(x1...&gt; );
+sqlite&gt; .tables
+pet
+sqlite&gt; .schema
+CREATE TABLE pet
+(
+id integer primary key autoincrement, 
+name text not null,
+kind text not null, 
+age integer,
+food text
+);
+CREATE TABLE sqlite_sequence(name,seq);
+sqlite&gt; insert into pet (name, kind, age, food) value 
+('Dorothy','dog',11,'peanut butter'
+(x1...&gt; );
+Parse error: near "value": syntax error
+  insert into pet (name, kind, age, food) value ('Dorothy','dog',11,'peanut butt
+                            error here ---^
+sqlite&gt; insert into pet (name, kind, age, food) values ('Dorothy','dog',11,'peanut butter');
+sqlite&gt; select * from pet;
+id  name     kind  age  food         
+--  -------  ----  ---  -------------
+1   Dorothy  dog   11   peanut butter
+sqlite&gt; insert into pet (name, kind, age, food) values ('Sandy','cat',11,'tuna'
+);
+sqlite&gt; insert into pet (name, kind, age, food) values ('Whiskers','hamster',11
+,'hamster chow');
+sqlite&gt; select * from pet;
+id  name      kind     age  food         
+--  --------  -------  ---  -------------
+1   Dorothy   dog      11   peanut butter
+2   Sandy     cat      11   tuna         
+3   Whiskers  hamster  11   hamster chow 
+sqlite&gt; select from pet where kind = 'cat';
+Parse error: near "from": syntax error
+  select from pet where kind = 'cat';
+         ^--- error here
+sqlite&gt; select * from pet where kind = 'cat';
+id  name   kind  age  food
+--  -----  ----  ---  ----
+2   Sandy  cat   11   tuna
+sqlite&gt; delete from pet where kind = 'cat';
+sqlite&gt; select kind,food from pet;
+kind     food         
+-------  -------------
+dog      peanut butter
+hamster  hamster chow 
+sqlite&gt; select kind,food from pet where age = 11;
+kind     food         
+-------  -------------
+dog      peanut butter
+hamster  hamster chow 
+
+$ echo "hello"
+hello
+$ echo &lt;&lt;'SONG'
+&gt; Happy birthday to you,
+&gt; HBTY
+&gt; HBT Dorothy
+&gt; HBTY
+&gt; SONG
+
+$ echo &lt;&lt;'SONG'
+Happy birthday to you,
+HBTY
+HBT Dorothy
+HBTY
+'SONG'
+&gt; SONG
+
+$ cd *01*
+bash: cd: *01*: No such file or directory
+$ ls
+pets.db
+$ pwd
+/workspaces/advanced-database/topic-01-intro-sql
+$ sqlite3 pets.db ".tables"
+pet
+$ cat &lt;&lt;'SONG' "hello"
+&gt; ^C
+$ cat &lt;&lt;'SONG'
+&gt; hi
+&gt; hello
+&gt; how are you
+&gt; SONG
+hi
+hello
+how are you
+$ sqlite pets.db &lt;&lt;'SQL'
+&gt; select * 
+&gt; from pet
+&gt; ;
+&gt; SQL
+bash: sqlite: command not found
+$ sqlite3 pets.db &lt;&lt;'SQL'
+select * 
+from pet
+;
+SQL
+$ 
+$ sqlite3 pets.db -header -column "select * from pet;"
+id  name     kind  age  food         
+--  -------  ----  ---  -------------
+1   Dorothy  dog   11   peanut butter
+$ sqlite3 pets.db -header -column "select * from pet where name == 'Dorothy';"
+id  name     kind  age  food         
+--  -------  ----  ---  -------------
+1   Dorothy  dog   11   peanut butter
+$ sqlite3 pets.db -header -column "select * from pet where name == 'Do';"
+$ sqlite3 pets.db -header -column "select * from pet where name == 'Whiskers';"
+id  name      kind     age  food        
+--  --------  -------  ---  ------------
+3   Whiskers  hamster  11   hamster chow
+$ sqlite3 pets.db -header -column "select * from pet where name = 'Whiskers';"
+id  name      kind     age  food        
+--  --------  -------  ---  ------------
+3   Whiskers  hamster  11   hamster chow
+$ sqlite3 pets.db -header -column "select * from pet order by kind;"
+id  name      kind     age  food         
+--  --------  -------  ---  -------------
+2   Sandy     cat      11   tuna         
+1   Dorothy   dog      11   peanut butter
+3   Whiskers  hamster  11   hamster chow 
+$ sqlite3 pets.db -header -column "select * from pet order by food;"
+id  name      kind     age  food         
+--  --------  -------  ---  -------------
+3   Whiskers  hamster  11   hamster chow 
+1   Dorothy   dog      11   peanut butter
+2   Sandy     cat      11   tuna         
+$ 
+</code></pre>
+        </details>
+
+        <p><a href="../../index.html">Back to course index</a></p>
+    </main>
+</body>
+
+</html>
