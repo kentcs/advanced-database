@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code: MongoDB Aggregation Pipelines</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; color: #172b36; background: #f5f7f9; font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 1600px; margin: auto; padding: 24px; }
+a { color: #12647a; }
+h1 { font-size: 26px; margin: 8px 0 20px; }
+.browser { display: grid; grid-template-columns: 270px minmax(0, 1fr); height: calc(100vh - 140px); min-height: 400px; border: 1px solid #ccd6dc; border-radius: 8px; overflow: hidden; background: white; }
+nav { overflow: auto; background: #edf2f5; border-right: 1px solid #ccd6dc; padding: 12px; }
+nav ul { list-style: none; padding: 0; margin: 0; }
+nav a { display: block; padding: 9px 10px; text-decoration: none; border-radius: 4px; overflow-wrap: anywhere; font: 14px/1.5 ui-monospace, monospace; }
+nav a:hover { background: #dfe9ed; }
+nav a[aria-current="true"] { background: #155e75; color: white; }
+a:focus-visible { outline: 3px solid #d18a00; outline-offset: -3px; }
+.viewer { min-width: 0; min-height: 0; }
+.source-file { height: 100%; display: flex; flex-direction: column; }
+.source-file[hidden] { display: none; }
+.file-header { padding: 12px 18px; border-bottom: 1px solid #ccd6dc; }
+h2 { font: 600 16px/1.5 ui-monospace, monospace; margin: 0; overflow-wrap: anywhere; }
+pre { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 20px; background: #fafbfc; tab-size: 4; }
+code { font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.binary { padding: 20px; }
+@media(max-width: 700px) { main { padding: 12px; } h1 { font-size: 21px; } .browser { grid-template-columns: 1fr; grid-template-rows: 160px minmax(0, 1fr); height: calc(100dvh - 130px); min-height: 480px; } nav { border-right: 0; border-bottom: 1px solid #ccd6dc; } }
+</style>
+</head>
+<body>
+<main>
+<a href="../index.html">Back to chapter</a>
+<h1>MongoDB Aggregation Pipelines: Code</h1>
+<div class="browser">
+<nav aria-label="Files"><ul><li><a href="#file-6167677265676174696f6e5f717565726965732e7079">aggregation_queries.py</a></li>
+<li><a href="#file-696d64625f6167677265676174696f6e2e7079">imdb_aggregation.py</a></li>
+<li><a href="#file-726571756972656d656e74732e747874">requirements.txt</a></li>
+<li><a href="#file-72756e2d67756964652e68746d6c">run-guide.html</a></li>
+<li><a href="#file-746573745f6167677265676174696f6e2e7079">test_aggregation.py</a></li></ul></nav>
+<div class="viewer"><section class="source-file" id="file-6167677265676174696f6e5f717565726965732e7079" aria-labelledby="title-file-6167677265676174696f6e5f717565726965732e7079"><header class="file-header"><h2 id="title-file-6167677265676174696f6e5f717565726965732e7079">aggregation_queries.py</h2></header><pre><code>"""MongoDB computes the summary; Python only submits and displays it."""
+import argparse
+import json
+import os
+from pymongo import MongoClient
+
+
+def build_pipeline(start_year=1990, end_year=1999, min_votes=1000):
+    if not (1800 &lt;= start_year &lt;= end_year &lt;= 2100):
+        raise ValueError("Choose an ordered year range from 1800 through 2100.")
+    if min_votes &lt; 0:
+        raise ValueError("Minimum votes must be nonnegative.")
+    return [
+        {"$match": {"title_type": "movie", "start_year": {
+            "$gte": start_year, "$lte": end_year}}},
+        {"$lookup": {"from": "ratings", "localField": "_id",
+                     "foreignField": "_id", "as": "rating"}},
+        {"$unwind": "$rating"},
+        {"$match": {"rating.num_votes": {"$gte": min_votes},
+                    "rating.average_rating": {"$type": "number"}}},
+        {"$group": {"_id": "$start_year", "rated_movies": {"$sum": 1},
+                    "mean_rating": {"$avg": "$rating.average_rating"},
+                    "total_votes": {"$sum": "$rating.num_votes"}}},
+        {"$sort": {"_id": 1}},
+        {"$project": {"_id": 0, "year": "$_id", "rated_movies": 1,
+                      "mean_rating": {"$round": ["$mean_rating", 2]},
+                      "total_votes": 1}},
+    ]
+
+
+def connect():
+    uri = os.environ.get("MONGODB_URI")
+    if not uri:
+        raise RuntimeError("Set MONGODB_URI using the Chapter 16 connection steps.")
+    client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+    try:
+        client.admin.command("ping")
+    except Exception:
+        client.close()
+        raise
+    return client, client[os.environ.get("MONGODB_DATABASE", "imdb")]
+
+
+def summarize(database, pipeline):
+    # No $out or $merge: this pipeline does not modify the course data.
+    return list(database.titles.aggregate(pipeline, maxTimeMS=30000, allowDiskUse=True))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Summarize IMDb movie ratings by year")
+    parser.add_argument("--start", type=int, default=1990)
+    parser.add_argument("--end", type=int, default=1999)
+    parser.add_argument("--min-votes", type=int, default=1000)
+    args = parser.parse_args()
+    pipeline = build_pipeline(args.start, args.end, args.min_votes)
+    client, database = connect()
+    try:
+        print(json.dumps(summarize(database, pipeline), indent=2))
+    finally:
+        client.close()
+</code></pre></section>
+<section class="source-file" id="file-696d64625f6167677265676174696f6e2e7079" aria-labelledby="title-file-696d64625f6167677265676174696f6e2e7079" hidden><header class="file-header"><h2 id="title-file-696d64625f6167677265676174696f6e2e7079">imdb_aggregation.py</h2></header><pre><code>"""Run: python -m streamlit run imdb_aggregation.py"""
+import pandas as pd
+import streamlit as st
+from pymongo.errors import PyMongoError
+import aggregation_queries as queries
+
+st.set_page_config(page_title="IMDb ratings by release year", layout="wide")
+st.title("IMDb ratings by release year")
+st.write("MongoDB filters, joins, and groups. Streamlit displays the summary.")
+st.caption("Mean rating gives each qualifying movie equal weight; it is not weighted by votes.")
+
+@st.cache_resource
+def database():
+    client, db = queries.connect()
+    return client, db
+
+with st.form("summary"):
+    a, b, c = st.columns(3)
+    start = a.number_input("First year", min_value=1800, max_value=2100, value=1990)
+    end = b.number_input("Last year", min_value=1800, max_value=2100, value=1999)
+    votes = c.number_input("Minimum votes per movie", min_value=0, value=1000, step=100)
+    submitted = st.form_submit_button("Summarize movie ratings")
+
+if submitted:
+    try:
+        pipeline = queries.build_pipeline(int(start), int(end), int(votes))
+    except ValueError as error:
+        st.error(str(error))
+        st.stop()
+    with st.expander("Pipeline executed by MongoDB", expanded=True):
+        st.json(pipeline)
+    try:
+        with st.spinner("MongoDB is computing the summary…"):
+            client, db = database()
+            rows = queries.summarize(db, pipeline)
+    except (RuntimeError, PyMongoError):
+        st.error("Could not run the summary. Check the Chapter 16 server, MONGODB_URI, "
+                 "and read access to imdb. If it timed out, try a smaller year range.")
+        st.stop()
+    if not rows:
+        st.info("No qualifying movies. Check the imported data, year range, and vote threshold.")
+    else:
+        frame = pd.DataFrame(rows)[["year", "rated_movies", "mean_rating", "total_votes"]]
+        st.dataframe(frame, hide_index=True)
+        st.bar_chart(frame, x="year", y="mean_rating")
+        st.caption("Years without qualifying movies are omitted. "
+                   "Counts describe this filtered sample, not all IMDb titles.")
+</code></pre></section>
+<section class="source-file" id="file-726571756972656d656e74732e747874" aria-labelledby="title-file-726571756972656d656e74732e747874" hidden><header class="file-header"><h2 id="title-file-726571756972656d656e74732e747874">requirements.txt</h2></header><pre><code>pymongo&gt;=4.18,&lt;5
+streamlit&gt;=1.50,&lt;2
+pandas&gt;=2.2,&lt;3
+</code></pre></section>
+<section class="source-file" id="file-72756e2d67756964652e68746d6c" aria-labelledby="title-file-72756e2d67756964652e68746d6c" hidden><header class="file-header"><h2 id="title-file-72756e2d67756964652e68746d6c">run-guide.html</h2></header><pre><code>&lt;!doctype html&gt;&lt;html lang="en"&gt;&lt;head&gt;&lt;meta charset="utf-8"&gt;&lt;title&gt;IMDb movie ratings by year&lt;/title&gt;&lt;/head&gt;&lt;body&gt;&lt;style&gt;body{max-width:920px;margin:36px auto;padding:0 24px;font:18px/1.5 Georgia,serif;color:#1e2b34}pre{background:#edf0f2;padding:18px;overflow:auto;font:14px/1.4 monospace}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #ccc;padding:8px;text-align:left}a{color:#285b76;overflow-wrap:anywhere}&lt;/style&gt;&lt;nav&gt;&lt;a href="../index.html"&gt;Chapter 17 contents&lt;/a&gt;&lt;/nav&gt;&lt;h1 id="imdb-movie-ratings-by-year"&gt;IMDb movie ratings by year&lt;/h1&gt;
+&lt;p&gt;Continue with the Chapter 16 MongoDB server and imported
+&lt;code&gt;imdb.titles&lt;/code&gt; and &lt;code&gt;imdb.ratings&lt;/code&gt;. The importer in
+&lt;code&gt;chapter-14-mongo-indexes/code/import-imdb-mongo.py&lt;/code&gt; creates
+the snake_case fields used here; do not substitute the raw TSV
+names.&lt;/p&gt;
+&lt;p&gt;From the repository root, in Bash:&lt;/p&gt;
+&lt;pre class="bash"&gt;&lt;code&gt;cd chapter-17-mongodb-aggregation/code
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Set &lt;code&gt;MONGODB_URI&lt;/code&gt; in this terminal using the &lt;a
+href="https://kentcs.github.io/advanced-database/chapter-16-mongodb-in-codespaces/slides/slides-16-02a-indexes-and-streamlit.html#/bash-connect-this-terminal"&gt;Chapter
+16 connection instructions&lt;/a&gt;. Use the existing credentials; do not put
+them in source code. The default database is &lt;code&gt;imdb&lt;/code&gt;;
+&lt;code&gt;MONGODB_DATABASE&lt;/code&gt; is an optional override for a test
+database.&lt;/p&gt;
+&lt;pre class="bash"&gt;&lt;code&gt;python aggregation_queries.py --start 1990 --end 1999 --min-votes 1000
+python -m streamlit run imdb_aggregation.py --server.address 0.0.0.0&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In Codespaces, open forwarded port 8501 and keep its visibility
+&lt;strong&gt;Private&lt;/strong&gt;. Press &lt;strong&gt;Summarize movie
+ratings&lt;/strong&gt;. The table and chart are the server result; Pandas only
+arranges columns for display. No client-side grouping occurs. The
+pipeline is read-only; neither command imports or replaces data.&lt;/p&gt;
+&lt;p&gt;A 30-second server limit keeps an expensive demo bounded. If it times
+out, reduce the year range. The Chapter 16 compound index on
+&lt;code&gt;(title_type, start_year)&lt;/code&gt; can help the first stage if
+already present; this lesson does not create indexes. The join uses the
+existing &lt;code&gt;ratings._id&lt;/code&gt; index. Full-dataset timing depends on
+the server, data snapshot, and indexes; a tiny fixture cannot establish
+that timing.&lt;/p&gt;
+&lt;h2 id="verify-with-an-isolated-server"&gt;Verify with an isolated
+server&lt;/h2&gt;
+&lt;p&gt;With &lt;code&gt;mongod&lt;/code&gt; on PATH (or
+&lt;code&gt;MONGOD=/absolute/path/to/mongod&lt;/code&gt;), run:&lt;/p&gt;
+&lt;pre class="bash"&gt;&lt;code&gt;python -m unittest discover -v&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Tests create and stop their own loopback-only MongoDB server in a
+temporary directory. They never use &lt;code&gt;MONGODB_URI&lt;/code&gt; to seed or
+delete course data. Missing &lt;code&gt;mongod&lt;/code&gt; skips live tests
+explicitly. The fixture is invented, not an IMDb extract.&lt;/p&gt;
+&lt;/body&gt;&lt;/html&gt;</code></pre></section>
+<section class="source-file" id="file-746573745f6167677265676174696f6e2e7079" aria-labelledby="title-file-746573745f6167677265676174696f6e2e7079" hidden><header class="file-header"><h2 id="title-file-746573745f6167677265676174696f6e2e7079">test_aggregation.py</h2></header><pre><code>"""Real MongoDB and Streamlit checks; no writes to the course database."""
+import json
+import os
+from pathlib import Path
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+from unittest.mock import patch
+from pymongo import MongoClient
+from streamlit.testing.v1 import AppTest
+import aggregation_queries as q
+
+ROOT = Path(__file__).resolve().parent
+MONGOD = os.environ.get("MONGOD") or shutil.which("mongod")
+EXPECTED = [
+    {"year": 1990, "rated_movies": 2, "mean_rating": 7.0, "total_votes": 3000},
+    {"year": 1991, "rated_movies": 1, "mean_rating": 7.5, "total_votes": 1500},
+]
+
+class ValidationTests(unittest.TestCase):
+    def test_bad_inputs(self):
+        for args in [(2000, 1990, 1000), (1700, 1990, 0), (1990, 1991, -1)]:
+            with self.assertRaises(ValueError):
+                q.build_pipeline(*args)
+
+    def test_missing_connection_setting(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(RuntimeError):
+                q.connect()
+
+@unittest.skipUnless(MONGOD, "Live checks require mongod on PATH or MONGOD")
+class LiveTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.temp = tempfile.TemporaryDirectory(prefix="chapter17-")
+        cls.addClassCleanup(cls.temp.cleanup)
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            port = sock.getsockname()[1]
+        cls.process = subprocess.Popen(
+            [MONGOD, "--dbpath", cls.temp.name, "--bind_ip", "127.0.0.1",
+             "--port", str(port), "--logpath", str(Path(cls.temp.name)/"mongo.log")],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        def stop():
+            cls.process.terminate()
+            try:
+                cls.process.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                cls.process.kill(); cls.process.wait()
+        cls.addClassCleanup(stop)
+        cls.uri = f"mongodb://127.0.0.1:{port}/?directConnection=true"
+        cls.client = MongoClient(cls.uri, serverSelectionTimeoutMS=500)
+        cls.addClassCleanup(cls.client.close)
+        for _ in range(40):
+            try:
+                cls.client.admin.command("ping")
+                break
+            except Exception:
+                if cls.process.poll() is not None:
+                    raise RuntimeError((Path(cls.temp.name)/"mongo.log").read_text())
+                time.sleep(.2)
+        else:
+            raise RuntimeError("Temporary MongoDB did not start")
+        cls.db = cls.client.chapter17_test
+        # Good rows, low votes, no rating, wrong kind/year, and missing values.
+        cls.db.titles.insert_many([
+            {"_id": key, "title_type": kind, "start_year": year}
+            for key, kind, year in [
+                ("A", "movie", 1990), ("B", "movie", 1990),
+                ("C", "movie", 1991), ("D", "movie", 1991),
+                ("E", "movie", 1991), ("F", "short", 1990),
+                ("G", "movie", None), ("H", "movie", 2000),
+                ("I", "movie", 1991), ("J", "movie", 1991)]])
+        cls.db.ratings.insert_many([
+            {"_id": key, "average_rating": rating, "num_votes": votes}
+            for key, rating, votes in [
+                ("A", 8.0, 2000), ("B", 6.0, 1000), ("C", 9.0, 500),
+                ("D", 7.5, 1500), ("F", 10.0, 2000), ("G", 10.0, 2000),
+                ("H", 10.0, 2000), ("I", None, 2000), ("J", 9.0, None)]])
+        print("MongoDB", cls.client.server_info()["version"], "isolated fixture ready")
+
+    def test_group_mean_counts_and_exclusions(self):
+        self.assertEqual(q.summarize(self.db, q.build_pipeline()), EXPECTED)
+
+    def test_threshold_and_inclusive_year(self):
+        self.assertEqual(q.summarize(self.db, q.build_pipeline(1990, 1990, 1500)),
+                         [{"year": 1990, "rated_movies": 1,
+                           "mean_rating": 8.0, "total_votes": 2000}])
+
+    def test_empty_result(self):
+        self.assertEqual(q.summarize(self.db, q.build_pipeline(1990, 1999, 10000)), [])
+
+    def test_fixture_index_and_explain(self):
+        self.db.titles.create_index([("title_type", 1), ("start_year", 1)], name="fixture_type_year")
+        started = time.perf_counter()
+        rows = q.summarize(self.db, q.build_pipeline())
+        elapsed = (time.perf_counter() - started) * 1000
+        report = self.db.command("explain", {"aggregate": "titles", "pipeline": q.build_pipeline(),
+                                             "cursor": {}, "hint": "fixture_type_year"}, verbosity="executionStats")
+        self.assertIn("IXSCAN", json.dumps(report))
+        self.assertEqual(rows, EXPECTED)
+        print(f"Fixture only: {len(rows)} rows, {elapsed:.2f} ms; compound index present; hinted explain IXSCAN")
+
+    def test_cli(self):
+        env = dict(os.environ, MONGODB_URI=self.uri, MONGODB_DATABASE=self.db.name)
+        result = subprocess.run([sys.executable, str(ROOT/"aggregation_queries.py")],
+                                env=env, text=True, capture_output=True, check=True)
+        self.assertEqual(json.loads(result.stdout), EXPECTED)
+
+    def test_streamlit_results_empty_and_bad_years(self):
+        with patch.dict(os.environ, {"MONGODB_URI": self.uri, "MONGODB_DATABASE": self.db.name}):
+            app = AppTest.from_file(str(ROOT/"imdb_aggregation.py"), default_timeout=30).run()
+            app.button[0].click().run()
+            self.assertEqual(len(app.exception), 0)
+            self.assertEqual(app.dataframe[0].value.to_dict("records"), EXPECTED)
+            app.number_input[2].set_value(10000)
+            app.button[0].click().run()
+            self.assertIn("No qualifying movies", app.info[0].value)
+            app.number_input[0].set_value(2000)
+            app.button[0].click().run()
+            self.assertIn("ordered year range", app.error[0].value)
+            self.assertEqual(len(app.exception), 0)
+
+if __name__ == "__main__":
+    unittest.main()
+</code></pre></section></div>
+</div>
+<p>The files are available in the <a href="https://github.com/kentcs/advanced-database/tree/main/chapter-17-mongodb-aggregation/code">course repository</a>.</p>
+</main>
+<script>
+const links = [...document.querySelectorAll('nav a')];
+const panels = [...document.querySelectorAll('.source-file')];
+function showFile() {
+ const selected = links.find(link => link.hash === location.hash) || links[0];
+ if (!selected) return;
+ for (const link of links) link === selected ? link.setAttribute('aria-current', 'true') : link.removeAttribute('aria-current');
+ for (const panel of panels) panel.hidden = '#' + panel.id !== selected.hash;
+}
+window.addEventListener('hashchange', showFile);
+showFile();
+</script>
+</body>
+</html>

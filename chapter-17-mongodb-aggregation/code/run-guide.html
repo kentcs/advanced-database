@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>IMDb movie ratings by year</title></head><body><style>body{max-width:920px;margin:36px auto;padding:0 24px;font:18px/1.5 Georgia,serif;color:#1e2b34}pre{background:#edf0f2;padding:18px;overflow:auto;font:14px/1.4 monospace}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #ccc;padding:8px;text-align:left}a{color:#285b76;overflow-wrap:anywhere}</style><nav><a href="../index.html">Chapter 17 contents</a></nav><h1 id="imdb-movie-ratings-by-year">IMDb movie ratings by year</h1>
+<p>Continue with the Chapter 16 MongoDB server and imported
+<code>imdb.titles</code> and <code>imdb.ratings</code>. The importer in
+<code>chapter-14-mongo-indexes/code/import-imdb-mongo.py</code> creates
+the snake_case fields used here; do not substitute the raw TSV
+names.</p>
+<p>From the repository root, in Bash:</p>
+<pre class="bash"><code>cd chapter-17-mongodb-aggregation/code
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt</code></pre>
+<p>Set <code>MONGODB_URI</code> in this terminal using the <a
+href="https://kentcs.github.io/advanced-database/chapter-16-mongodb-in-codespaces/slides/slides-16-02a-indexes-and-streamlit.html#/bash-connect-this-terminal">Chapter
+16 connection instructions</a>. Use the existing credentials; do not put
+them in source code. The default database is <code>imdb</code>;
+<code>MONGODB_DATABASE</code> is an optional override for a test
+database.</p>
+<pre class="bash"><code>python aggregation_queries.py --start 1990 --end 1999 --min-votes 1000
+python -m streamlit run imdb_aggregation.py --server.address 0.0.0.0</code></pre>
+<p>In Codespaces, open forwarded port 8501 and keep its visibility
+<strong>Private</strong>. Press <strong>Summarize movie
+ratings</strong>. The table and chart are the server result; Pandas only
+arranges columns for display. No client-side grouping occurs. The
+pipeline is read-only; neither command imports or replaces data.</p>
+<p>A 30-second server limit keeps an expensive demo bounded. If it times
+out, reduce the year range. The Chapter 16 compound index on
+<code>(title_type, start_year)</code> can help the first stage if
+already present; this lesson does not create indexes. The join uses the
+existing <code>ratings._id</code> index. Full-dataset timing depends on
+the server, data snapshot, and indexes; a tiny fixture cannot establish
+that timing.</p>
+<h2 id="verify-with-an-isolated-server">Verify with an isolated
+server</h2>
+<p>With <code>mongod</code> on PATH (or
+<code>MONGOD=/absolute/path/to/mongod</code>), run:</p>
+<pre class="bash"><code>python -m unittest discover -v</code></pre>
+<p>Tests create and stop their own loopback-only MongoDB server in a
+temporary directory. They never use <code>MONGODB_URI</code> to seed or
+delete course data. Missing <code>mongod</code> skips live tests
+explicitly. The fixture is invented, not an IMDb extract.</p>
+</body></html>

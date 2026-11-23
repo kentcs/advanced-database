@@ -1,0 +1,134 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Let MongoDB Do the Work — IMDb Ratings by Year</title></head><body><link rel="stylesheet" href="slide-assets/reveal.css">
+<link rel="stylesheet" href="slide-assets/slides.css">
+<div class="reveal"><div class="slides"><section><h1 id="let-mongodb-do-the-work">Let MongoDB Do the Work</h1>
+<h2 id="imdb-ratings-by-year">IMDb Ratings by Year</h2>
+<p>Chapter 17 · MongoDB Aggregation Pipelines</p>
+<p>One server pipeline → one Streamlit summary</p>
+</section><section><h2 id="compute-near-the-data">Compute Near the Data</h2>
+<ul>
+<li>MongoDB filters, joins, groups, and computes.</li>
+<li>The client receives a small summary, not millions of documents.</li>
+<li>Every client can submit the same pipeline.</li>
+<li>Streamlit displays the result; it does not repeat the
+aggregation.</li>
+</ul>
+</section><section><h2 id="one-question-two-collections">One Question, Two Collections</h2>
+<p><strong>Mean movie rating by release year, with at least 1,000
+votes.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Collection</th>
+<th>Fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>titles</td>
+<td>_id, title_type, start_year</td>
+</tr>
+<tr>
+<td>ratings</td>
+<td>_id, average_rating, num_votes</td>
+</tr>
+</tbody>
+</table>
+<p>Same IMDb <code>_id</code> links the records. Use 1990–1999.</p>
+</section><section><h2 id="read-the-pipeline-left-to-right">Read the Pipeline Left to
+Right</h2>
+<p>Filter movies → join ratings → unwrap the match</p>
+<p>Filter votes → group by year → sort → name the columns</p>
+<p><strong>Each stage receives the previous stage’s output.</strong></p>
+<p>All seven stages execute inside MongoDB.</p>
+</section><section><h2 id="keep-the-movies-attach-ratings">Keep the Movies; Attach
+Ratings</h2>
+<pre class="python"><code>{&quot;$match&quot;: {&quot;title_type&quot;: &quot;movie&quot;,
+            &quot;start_year&quot;: {&quot;$gte&quot;: 1990, &quot;$lte&quot;: 1999}}}
+
+{&quot;$lookup&quot;: {&quot;from&quot;: &quot;ratings&quot;, &quot;localField&quot;: &quot;_id&quot;,
+             &quot;foreignField&quot;: &quot;_id&quot;, &quot;as&quot;: &quot;rating&quot;}}</code></pre>
+<p><code>rating</code> is an array, even when there is just one
+match.</p>
+</section><section><h2 id="decide-which-movies-count">Decide Which Movies Count</h2>
+<pre class="python"><code>{&quot;$unwind&quot;: &quot;$rating&quot;}
+
+{&quot;$match&quot;: {&quot;rating.num_votes&quot;: {&quot;$gte&quot;: 1000},
+            &quot;rating.average_rating&quot;: {&quot;$type&quot;: &quot;number&quot;}}}</code></pre>
+<p>No rating match? Dropped. Too few votes? Dropped.</p>
+</section><section><h2 id="one-summary-per-year">One Summary per Year</h2>
+<pre class="python"><code>{&quot;$group&quot;: {
+    &quot;_id&quot;: &quot;$start_year&quot;,
+    &quot;rated_movies&quot;: {&quot;$sum&quot;: 1},
+    &quot;mean_rating&quot;: {&quot;$avg&quot;: &quot;$rating.average_rating&quot;},
+    &quot;total_votes&quot;: {&quot;$sum&quot;: &quot;$rating.num_votes&quot;}
+}}</code></pre>
+<p>Each movie has equal weight in the mean.</p>
+</section><section><h2 id="make-the-answer-displayable">Make the Answer Displayable</h2>
+<pre class="python"><code>{&quot;$sort&quot;: {&quot;_id&quot;: 1}}
+
+{&quot;$project&quot;: {&quot;_id&quot;: 0, &quot;year&quot;: &quot;$_id&quot;,
+              &quot;rated_movies&quot;: 1, &quot;total_votes&quot;: 1,
+              &quot;mean_rating&quot;: {&quot;$round&quot;: [&quot;$mean_rating&quot;, 2]}}}</code></pre>
+<p>Sort explicitly. Rename the year. Round only the result.</p>
+</section><section><h2 id="predict-before-you-run">Predict Before You Run</h2>
+<p>Invented fixture · minimum 1,000 votes</p>
+<table>
+<thead>
+<tr>
+<th>Year</th>
+<th>Qualifying ratings</th>
+<th>Movies</th>
+<th>Mean</th>
+<th>Votes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1990</td>
+<td>8.0 (2,000), 6.0 (1,000)</td>
+<td>2</td>
+<td>7.0</td>
+<td>3,000</td>
+</tr>
+<tr>
+<td>1991</td>
+<td>7.5 (1,500)</td>
+<td>1</td>
+<td>7.5</td>
+<td>1,500</td>
+</tr>
+</tbody>
+</table>
+<p>What changes if the minimum becomes 1,500?</p>
+</section><section><h2 id="run-the-same-query-two-ways">Run the Same Query Two Ways</h2>
+<p>Bash · Chapter 17 <code>code/</code> · environment configured</p>
+<pre class="bash"><code>python aggregation_queries.py --start 1990 --end 1999
+python -m streamlit run imdb_aggregation.py --server.address 0.0.0.0</code></pre>
+<p>Press <strong>Summarize movie ratings</strong>; inspect the
+pipeline.</p>
+<p>Change the vote threshold. Explain the new sample.</p>
+</section><section><h2 id="streamlit-presents-the-server-result">Streamlit Presents the
+Server Result</h2>
+<pre class="python"><code>rows = summarize(db, build_pipeline(1990, 1999, 1000))
+frame = pd.DataFrame(rows)
+st.dataframe(frame, hide_index=True)
+st.bar_chart(frame, x=&quot;year&quot;, y=&quot;mean_rating&quot;)</code></pre>
+<p>No client-side grouping. No raw dataset download.</p>
+</section><section><h2 id="take-this-pattern-with-you">Take This Pattern With You</h2>
+<p><strong>Filter → join → group → display.</strong></p>
+<p>Extend your Chapter 16 page: keep title search; add a yearly
+summary.</p>
+<p>Why must the vote filter run before grouping?</p>
+</section><section><h2 id="keep-the-documentation-nearby">Keep the Documentation
+Nearby</h2>
+<p>MongoDB aggregation pipeline guide:</p>
+<p><a
+href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/"
+class="uri">https://www.mongodb.com/docs/manual/core/aggregation-pipeline/</a></p>
+<p>Worked tutorial: Group and Total Data</p>
+<p><a
+href="https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/group-and-total/"
+class="uri">https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/group-and-total/</a></p>
+</section></div></div>
+<script src="slide-assets/reveal.js"></script>
+<script>Reveal.initialize({width:1280,height:720,margin:0.05,center:true,hash:true,slideNumber:true,transition:'none'});</script></body></html>

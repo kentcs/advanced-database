@@ -1,0 +1,49 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Add a Yearly Ratings Summary to Your IMDb Page</title></head><body><style>body{max-width:920px;margin:36px auto;padding:0 24px;font:18px/1.5 Georgia,serif;color:#1e2b34}pre{background:#edf0f2;padding:18px;overflow:auto;font:14px/1.4 monospace}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #ccc;padding:8px;text-align:left}a{color:#285b76;overflow-wrap:anywhere}</style><nav><a href="../index.html">Chapter 17 contents</a></nav><h1 id="add-a-yearly-ratings-summary-to-your-imdb-page">Add a Yearly
+Ratings Summary to Your IMDb Page</h1>
+<p>Your Chapter 16 Streamlit page finds individual titles. Add a second
+view that answers a different question: what is the mean rating of
+qualifying movies in each release year? Keep the title search
+working.</p>
+<h2 id="build-it">Build it</h2>
+<ol type="1">
+<li>Work in a copy of your Chapter 16 app. Add an <strong>IMDb ratings
+by year</strong> section or tab, with first year, last year, and minimum
+votes inputs. Use 1990, 1999, and 1,000 as the starting values.</li>
+<li>Add a query helper that sends an aggregation pipeline to
+<code>db.titles</code>. Match <code>title_type: "movie"</code> and the
+inclusive year range; join <code>ratings</code> on <code>_id</code>;
+unwind the rating; require the vote threshold and numeric rating; group
+by <code>start_year</code>; sort; and project the display columns.</li>
+<li>Show <code>year</code>, <code>rated_movies</code>,
+<code>mean_rating</code>, and <code>total_votes</code> in a table. Add a
+bar chart of the mean by year. State on the page that each qualifying
+movie has equal weight. You are averaging title-level
+<code>average_rating</code> values, not individual votes and not
+weighting by <code>num_votes</code>.</li>
+<li>Keep the computation in MongoDB. Python should submit the pipeline
+and display its returned rows. Do not fetch all titles and group them in
+Pandas.</li>
+<li>Handle reversed years and no matching movies. Keep credentials in
+<code>MONGODB_URI</code>, as in Chapter 16. Do not write to or replace
+the collections.</li>
+</ol>
+<p>Use the <a href="../code/aggregation_queries.py">worked query
+helper</a> and <a href="../code/imdb_aggregation.py">standalone
+demonstration</a> if you get stuck. Your submission should extend your
+Chapter 16 app, not replace its title search.</p>
+<h2 id="check-your-work">Check your work</h2>
+<p>First predict the tiny example in the primer: at 1,000 votes, the
+1990 row has 2 movies, mean 7.0, and 3,000 votes; 1991 has 1 movie, mean
+7.5, and 1,500 votes. At 1,500 votes, the 1990 row becomes 1 movie, mean
+8.0, and 2,000 votes. The supplied tests check this on an isolated
+server; do not seed these invented movies into your course database.</p>
+<p>Then run your page on the Chapter 16 IMDb data. Submit your app and
+helper, a screenshot of the table and chart, and a short explanation of
+what changed when you raised the minimum votes from 1,000 to 10,000.
+Include the year range and dataset you used. Explain why a changed mean
+does not establish a trend in movie quality. Confirm that title search
+still works.</p>
+<p>Reference: <a
+href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/"
+class="uri">https://www.mongodb.com/docs/manual/core/aggregation-pipeline/</a></p>
+</body></html>

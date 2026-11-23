@@ -1,0 +1,304 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Chapter 17: MongoDB Aggregation Pipelines</title></head><body><style>body{max-width:920px;margin:36px auto;padding:0 24px;font:18px/1.5 Georgia,serif;color:#1e2b34}pre{background:#edf0f2;padding:18px;overflow:auto;font:14px/1.4 monospace}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #ccc;padding:8px;text-align:left}a{color:#285b76;overflow-wrap:anywhere}</style><nav><a href="index.html">Chapter 17 contents</a></nav><h1 id="chapter-17-mongodb-aggregation-pipelines">Chapter 17: MongoDB
+Aggregation Pipelines</h1>
+<h2 id="from-imdb-documents-to-a-yearly-ratings-summary">From IMDb
+Documents to a Yearly Ratings Summary</h2>
+<p>A database-backed page should not download millions of documents just
+to filter and summarize them. Let MongoDB perform the filtering,
+joining, grouping, and computation near the data. Send the small result
+to the client. Every client can submit the same pipeline instead of
+repeating the computation over raw records. Python sends the request
+through PyMongo; Streamlit presents the answer.</p>
+<p>Our question is: <strong>For each release year, what is the mean IMDb
+rating of movies with at least 1,000 votes?</strong> We will use
+1990–1999, inclusive. A year with no qualifying movies has no row. This
+is a description of a filtered sample, not a claim that movies improved
+or declined over time.</p>
+<p>By the end, you should be able to trace a document through a
+pipeline, explain which movies enter an average, and connect the server
+result to a Streamlit page. Allow about 20–25 minutes, including the
+live demonstration.</p>
+<h2 id="start-with-the-data-we-already-imported">Start with the data we
+already imported</h2>
+<p>Chapter 16 imports the IMDb data with the Chapter 14 importer. It
+uses these fields, not the original TSV camelCase column names:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Collection</th>
+<th>Fields used here</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>titles</code></td>
+<td><code>_id</code>, <code>title_type</code>,
+<code>start_year</code></td>
+<td>IMDb identifier, kind of title, integer release year</td>
+</tr>
+<tr>
+<td><code>ratings</code></td>
+<td><code>_id</code>, <code>average_rating</code>,
+<code>num_votes</code></td>
+<td>Same identifier, numeric rating, integer vote count</td>
+</tr>
+</tbody>
+</table>
+<p>Missing imported numeric values are <code>null</code>. The
+collections are separate: <code>average_rating</code> is not a field on
+<code>titles</code>. Matching <code>_id</code> values connect them.
+Chapter 16’s search page looked up ratings in Python; this page joins
+them on the server. An existing <code>_id</code> index supports the
+lookup.</p>
+<h2 id="a-pipeline-is-an-ordered-sequence-of-transformations">A pipeline
+is an ordered sequence of transformations</h2>
+<p>Each stage receives documents from the previous stage. The collection
+is the input; the final documents are the result. Our pipeline uses
+seven stages:</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Stage</th>
+<th>What comes out</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$match</code></td>
+<td>Movies whose release year is in the chosen range</td>
+</tr>
+<tr>
+<td><code>$lookup</code></td>
+<td>Each movie plus a <code>rating</code> array of matching rating
+documents</td>
+</tr>
+<tr>
+<td><code>$unwind</code></td>
+<td>One document per matched rating; unrated titles disappear</td>
+</tr>
+<tr>
+<td><code>$match</code></td>
+<td>Movies meeting the vote threshold and having a numeric rating</td>
+</tr>
+<tr>
+<td><code>$group</code></td>
+<td>One summary document for each year</td>
+</tr>
+<tr>
+<td><code>$sort</code></td>
+<td>Summaries in ascending year order</td>
+</tr>
+<tr>
+<td><code>$project</code></td>
+<td>Clearly named output fields, with the mean rounded for display</td>
+</tr>
+</tbody>
+</table>
+<p>These stages run inside MongoDB. They do not change the stored
+documents.</p>
+<h2 id="filter-then-join-the-ratings">Filter, then join the ratings</h2>
+<p>Here is the beginning of the pipeline, as a Python list of
+dictionaries sent to MongoDB. The example uses fixed values; the
+runnable helper accepts form values.</p>
+<pre class="python"><code>pipeline = [
+    {&quot;$match&quot;: {&quot;title_type&quot;: &quot;movie&quot;,
+                &quot;start_year&quot;: {&quot;$gte&quot;: 1990, &quot;$lte&quot;: 1999}}},
+    {&quot;$lookup&quot;: {&quot;from&quot;: &quot;ratings&quot;, &quot;localField&quot;: &quot;_id&quot;,
+                 &quot;foreignField&quot;: &quot;_id&quot;, &quot;as&quot;: &quot;rating&quot;}},
+    {&quot;$unwind&quot;: &quot;$rating&quot;},
+    {&quot;$match&quot;: {&quot;rating.num_votes&quot;: {&quot;$gte&quot;: 1000},
+                &quot;rating.average_rating&quot;: {&quot;$type&quot;: &quot;number&quot;}}},
+]</code></pre>
+<p>Filtering early reduces the movies reaching the join. The first stage
+may use the existing <code>(title_type, start_year)</code> index; check
+rather than assume it is present. An equality lookup produces an array,
+even when <code>_id</code> makes the match unique. <code>$unwind</code>
+turns that one-element array into a rating object. Its default behavior
+drops empty arrays, so movies without a rating do not enter the summary.
+The second match removes low-vote ratings and nonnumeric values before
+counting.</p>
+<h2 id="group-sort-and-name-the-answer">Group, sort, and name the
+answer</h2>
+<p>Append these stages to the list above:</p>
+<pre class="python"><code>pipeline += [
+    {&quot;$group&quot;: {&quot;_id&quot;: &quot;$start_year&quot;,
+                &quot;rated_movies&quot;: {&quot;$sum&quot;: 1},
+                &quot;mean_rating&quot;: {&quot;$avg&quot;: &quot;$rating.average_rating&quot;},
+                &quot;total_votes&quot;: {&quot;$sum&quot;: &quot;$rating.num_votes&quot;}}},
+    {&quot;$sort&quot;: {&quot;_id&quot;: 1}},
+    {&quot;$project&quot;: {&quot;_id&quot;: 0, &quot;year&quot;: &quot;$_id&quot;, &quot;rated_movies&quot;: 1,
+                  &quot;mean_rating&quot;: {&quot;$round&quot;: [&quot;$mean_rating&quot;, 2]},
+                  &quot;total_votes&quot;: 1}},
+]</code></pre>
+<p>In <code>$group</code>, <code>_id</code> is the group key: the year,
+not the movie identifier. <code>$sum: 1</code> counts qualifying movies.
+<code>$avg</code> averages their title-level ratings. <code>$sum</code>
+over votes describes the sample’s total votes. <code>$group</code> does
+not promise an output order; <code>$sort</code> makes the table
+predictable. <code>$project</code> renames the year, removes
+<code>_id</code>, keeps the counts, and rounds only the final mean.</p>
+<p>Each movie has equal weight in <code>mean_rating</code>. It is
+<strong>not</strong> a vote-weighted average and is not the mean of
+individual users’ votes. Raising the threshold changes which movies
+qualify; it does not give high-vote movies extra weight.</p>
+<h2 id="trace-a-tiny-example-before-using-the-full-dataset">Trace a tiny
+example before using the full dataset</h2>
+<p>These are invented fixture records, not measured IMDb results:</p>
+<table>
+<thead>
+<tr>
+<th>Movie</th>
+<th>Year</th>
+<th>Rating</th>
+<th>Votes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>1990</td>
+<td>8.0</td>
+<td>2,000</td>
+</tr>
+<tr>
+<td>B</td>
+<td>1990</td>
+<td>6.0</td>
+<td>1,000</td>
+</tr>
+<tr>
+<td>C</td>
+<td>1991</td>
+<td>9.0</td>
+<td>500</td>
+</tr>
+<tr>
+<td>D</td>
+<td>1991</td>
+<td>7.5</td>
+<td>1,500</td>
+</tr>
+<tr>
+<td>E</td>
+<td>1991</td>
+<td>no rating document</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>At a 1,000-vote threshold, C fails the vote test and E disappears at
+<code>$unwind</code>. The result is:</p>
+<table>
+<thead>
+<tr>
+<th>year</th>
+<th>rated_movies</th>
+<th>mean_rating</th>
+<th>total_votes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1990</td>
+<td>2</td>
+<td>7.0</td>
+<td>3,000</td>
+</tr>
+<tr>
+<td>1991</td>
+<td>1</td>
+<td>7.5</td>
+<td>1,500</td>
+</tr>
+</tbody>
+</table>
+<p>Predict the result at 1,500 votes before running it: 1990 has one
+movie rated 8.0 with 2,000 votes; 1991 is unchanged. This checks the
+meaning of the pipeline, not just whether it runs.</p>
+<h2 id="submit-the-pipeline-display-its-result">Submit the pipeline;
+display its result</h2>
+<p><code>code/aggregation_queries.py</code> holds the shared pipeline
+builder. Both the command line and Streamlit use it, so the lecture and
+dashboard run the same query.</p>
+<pre class="python"><code>from aggregation_queries import connect, build_pipeline, summarize
+
+client, db = connect()
+try:
+    rows = summarize(db, build_pipeline(1990, 1999, 1000))
+finally:
+    client.close()</code></pre>
+<p>The helper’s database operation is:</p>
+<pre class="python"><code>rows = list(db.titles.aggregate(
+    pipeline, maxTimeMS=30000, allowDiskUse=True))</code></pre>
+<p>Only the summary rows cross into Python. <code>allowDiskUse</code>
+permits temporary disk work if needed; it does not make a large query
+instant. The 30-second limit bounds the classroom demo. A timeout means
+try a narrower year range and inspect indexes; it does not mean no
+movies matched.</p>
+<p>The Streamlit page adds a form for the two years and vote threshold,
+shows the actual pipeline, and displays the returned rows:</p>
+<pre class="python"><code>frame = pd.DataFrame(rows)[
+    [&quot;year&quot;, &quot;rated_movies&quot;, &quot;mean_rating&quot;, &quot;total_votes&quot;]]
+st.dataframe(frame, hide_index=True)
+st.bar_chart(frame, x=&quot;year&quot;, y=&quot;mean_rating&quot;)</code></pre>
+<p>There is no second aggregation in Pandas. The page handles an empty
+result, reversed years, and a failed connection. Connection errors do
+not display the credential-bearing URI. See <a
+href="https://kentcs.github.io/advanced-database/chapter-17-mongodb-aggregation/code/run-guide.html">the
+run guide</a> for setup and commands.</p>
+<h2 id="teach-it-in-one-pass">Teach it in one pass</h2>
+<ol type="1">
+<li><strong>3 minutes:</strong> Explain server computation versus
+transferring raw data.</li>
+<li><strong>4 minutes:</strong> Check the two collections and trace the
+join.</li>
+<li><strong>6 minutes:</strong> Build the stages and predict the fixture
+result.</li>
+<li><strong>7 minutes:</strong> Run the CLI, then the Streamlit page
+over Chapter 16 data.</li>
+<li><strong>3 minutes:</strong> Raise the vote threshold and explain the
+changed sample.</li>
+</ol>
+<p>Exit question: Why must the vote filter run before
+<code>$group</code>? Answer: we want only qualifying movies contributing
+to both the count and the mean; after grouping, the individual rating
+and vote fields no longer exist.</p>
+<h2 id="your-turn-extend-the-chapter-16-page">Your turn: extend the
+Chapter 16 page</h2>
+<p>Keep the title search and add an <strong>IMDb ratings by
+year</strong> view. Let users choose the years and minimum votes, run
+the pipeline on MongoDB, and show the returned table and chart. Explain
+what each row averages. The <a
+href="https://kentcs.github.io/advanced-database/chapter-17-mongodb-aggregation/exercises/extend-the-imdb-page.html">exercise
+guide</a> gives the checks and submission details.</p>
+<h2 id="official-reference">Official reference</h2>
+<p>MongoDB’s aggregation pipeline documentation describes the
+server-side stage model. Keep this URL handy while writing or extending
+pipelines:</p>
+<p><a
+href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/"
+class="uri">https://www.mongodb.com/docs/manual/core/aggregation-pipeline/</a></p>
+<p>The official <strong>Group and Total Data</strong> tutorial works
+through the same pattern with customer orders: choose the records, group
+them, and compute a result. Select Python in its language selector to
+compare the driver syntax with ours.</p>
+<p><a
+href="https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/group-and-total/"
+class="uri">https://www.mongodb.com/docs/manual/tutorial/aggregation-examples/group-and-total/</a></p>
+<p>Stage references:</p>
+<p><a
+href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/"
+class="uri">https://www.mongodb.com/docs/manual/reference/operator/aggregation/lookup/</a></p>
+<p><a
+href="https://www.mongodb.com/docs/manual/reference/operator/aggregation/group/"
+class="uri">https://www.mongodb.com/docs/manual/reference/operator/aggregation/group/</a></p>
+</body></html>
